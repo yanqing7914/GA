@@ -60,10 +60,14 @@ class McpConfig:
     enable_ui_detect: bool
     enable_skills: bool
     enable_memory: bool
+    enable_coding_agents: bool
     confirm_token: str | None
     adb_path: str
     cdp_host: str
     cdp_port: int
+    claude_command: str
+    codex_command: str
+    cursor_command: str
     max_output_chars: int
     default_timeout_seconds: int
     max_timeout_seconds: int
@@ -78,8 +82,8 @@ class McpConfig:
             allowed_roots=tuple(_split_roots(os.getenv("GA_MCP_ALLOWED_ROOTS"))),
             audit_log=Path(os.getenv("GA_MCP_AUDIT_LOG", str(audit_default))).expanduser(),
             token=os.getenv("GA_MCP_TOKEN"),
-            enable_screenshot=_env_bool("GA_MCP_ENABLE_SCREENSHOT", False),
-            enable_ocr=_env_bool("GA_MCP_ENABLE_OCR", False),
+            enable_screenshot=_env_bool("GA_MCP_ENABLE_SCREENSHOT", True),
+            enable_ocr=_env_bool("GA_MCP_ENABLE_OCR", True),
             enable_python=_env_bool("GA_MCP_ENABLE_PYTHON", False),
             enable_powershell=_env_bool("GA_MCP_ENABLE_POWERSHELL", False),
             enable_desktop=_env_bool("GA_MCP_ENABLE_DESKTOP", False),
@@ -88,10 +92,14 @@ class McpConfig:
             enable_ui_detect=_env_bool("GA_MCP_ENABLE_UI_DETECT", False),
             enable_skills=_env_bool("GA_MCP_ENABLE_SKILLS", False),
             enable_memory=_env_bool("GA_MCP_ENABLE_MEMORY", False),
+            enable_coding_agents=_env_bool("GA_MCP_ENABLE_CODING_AGENTS", False),
             confirm_token=os.getenv("GA_MCP_CONFIRM_TOKEN"),
             adb_path=os.getenv("GA_MCP_ADB_PATH", "adb"),
             cdp_host=os.getenv("GA_MCP_CDP_HOST", "127.0.0.1"),
             cdp_port=_env_int("GA_MCP_CDP_PORT", 9222),
+            claude_command=os.getenv("GA_MCP_CLAUDE_COMMAND", "claude"),
+            codex_command=os.getenv("GA_MCP_CODEX_COMMAND", "codex"),
+            cursor_command=os.getenv("GA_MCP_CURSOR_COMMAND", "cursor"),
             max_output_chars=max(1000, _env_int("GA_MCP_MAX_OUTPUT_CHARS", 20000)),
             default_timeout_seconds=default_timeout,
             max_timeout_seconds=max_timeout,
@@ -109,4 +117,5 @@ class McpConfig:
             "ui_detect_enabled": self.enable_ui_detect,
             "skills_enabled": self.enable_skills,
             "memory_enabled": self.enable_memory,
+            "coding_agents_enabled": self.enable_coding_agents,
         }

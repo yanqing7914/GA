@@ -56,14 +56,11 @@ PYTHON_DENY_PATTERNS = (
     r"\bos\.system\b",
     r"\bPopen\b",
     r"\bStart-Process\b",
-    r"\.env",
     r"id_rsa",
     r"id_dsa",
     r"id_ed25519",
     r"\.pem",
     r"\.key",
-    r"token",
-    r"secret",
 )
 
 
@@ -148,11 +145,12 @@ def check_powershell_command(command: str) -> None:
             raise SafetyError(f"Command denied by policy: {denied}")
 
 
-def check_python_code(code: str) -> None:
-    lowered = code.lower()
+def check_python_risks(code: str) -> list[str]:
+    risks: list[str] = []
     for pattern in PYTHON_DENY_PATTERNS:
-        if re.search(pattern, lowered, flags=re.IGNORECASE):
-            raise SafetyError("Python code denied by sandbox policy")
+        if re.search(pattern, code, flags=re.IGNORECASE):
+            risks.append(pattern)
+    return risks
 
 
 def require_confirm(config, confirm_token: str | None, action: str) -> None:

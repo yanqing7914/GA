@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import platform
+import time
 
 from ..audit import AuditLogger
 from ..config import McpConfig
@@ -8,11 +9,74 @@ from ..safety import SafetyError, require_confirm
 
 
 def _ctrl():
-    if platform.system() != "Windows":
-        raise SafetyError("Desktop control Phase 2 currently supports Windows only")
-    from memory import ljqCtrl
+    system = platform.system()
+    if system == "Windows":
+        from memory import ljqCtrl
 
-    return ljqCtrl
+        return ljqCtrl
+    if system == "Darwin":
+        from ..vendor_ext import desktop_mac
+
+        return desktop_mac
+    from ..vendor_ext import desktop_linux
+
+    return desktop_linux
+
+
+def _type_unicode_windows(text: str, delay: float) -> None:
+    import ctypes
+    from ctypes import wintypes
+
+    INPUT_KEYBOARD = 1
+    KEYEVENTF_UNICODE = 0x0004
+    KEYEVENTF_KEYUP = 0x0002
+
+    class KEYBDINPUT(ctypes.Structure):
+        _fields_ = [
+            ("wVk", wintypes.WORD),
+            ("wScan", wintypes.WORD),
+            ("dwFlags", wintypes.DWORD),
+            ("time", wintypes.DWORD),
+            ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong)),
+        ]
+
+    class INPUTUNION(ctypes.Union):
+        _fields_ = [("ki", KEYBDINPUT)]
+
+    class INPUT(ctypes.Structure):
+        _fields_ = [("type", wintypes.DWORD), ("union", INPUTUNION)]
+
+    send_input = ctypes.windll.user32.SendInput
+    for char in text:
+        code = ord(char)
+        for flags in (KEYEVENTF_UNICODE, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP):
+            item = INPUT(type=INPUT_KEYBOARD, union=INPUTUNION(ki=KEYBDINPUT(0, code, flags, 0, None)))
+            send_input(1, ctypes.byref(item), ctypes.sizeof(item))
+        if delay > 0:
+            time.sleep(delay)
+
+
+def _type_unicode(ctrl, text: str, delay: float) -> None:
+    if hasattr(ctrl, "TypeUnicode"):
+        ctrl.TypeUnicode(text, delay)
+        return
+    if platform.system() == "Windows":
+        _type_unicode_windows(text, delay)
+        return
+    if hasattr(ctrl, "typewrite"):
+        ctrl.typewrite(text, delay)
+        return
+    raise SafetyError("Unicode typing is not supported on this platform")
+
+
+def _move_to(ctrl, x: int, y: int, duration: float) -> None:
+    if hasattr(ctrl, "MoveTo"):
+        ctrl.MoveTo(x, y, duration)
+        return
+    steps = max(1, int(duration / 0.02))
+    for _ in range(steps - 1):
+        time.sleep(duration / steps)
+    ctrl.SetCursorPos((x, y))
 
 
 def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None:
@@ -58,3 +122,66 @@ def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None
             ctrl = _ctrl()
             ctrl.Press(keys)
             return {"ok": True, "keys": keys}
+
+    @mcp.tool()
+    def ga_keyboard_type(text: str, delay_ms: int = 30, confirm_token: str | None = None) -> dict:
+        """Type a unicode string at current cursor position. Disabled by default."""
+        with audit.call("ga_keyboard_type", transport, risk_level="high"):
+            if not config.enable_desktop:
+                raise SafetyError("ga_keyboard_type is disabled by policy")
+            require_confirm(config, confirm_token, "ga_keyboard_type")
+            ctrl = _ctrl()
+            _type_unicode(ctrl, text, max(0, int(delay_ms)) / 1000.0)
+            return {"ok": True, "chars": len(text)}
+
+    @mcp.tool()
+    def ga_mouse_drag(
+        from_x: int,
+        from_y: int,
+        to_x: int,
+        to_y: int,
+        duration_ms: int = 200,
+        confirm_token: str | None = None,
+    ) -> dict:
+        """Drag from one point to another. Disabled by default."""
+        with audit.call("ga_mouse_drag", transport, risk_level="high"):
+            if not config.enable_desktop:
+                raise SafetyError("ga_mouse_drag is disabled by policy")
+            require_confirm(config, confirm_token, "ga_mouse_drag")
+            ctrl = _ctrl()
+            ctrl.SetCursorPos((int(from_x), int(from_y)))
+            ctrl.MouseDown()
+            _move_to(ctrl, int(to_x), int(to_y), max(0, int(duration_ms)) / 1000.0)
+            ctrl.MouseUp()
+            return {"ok": True}
+
+    @mcp.tool()
+    def ga_mouse_double_click(x: int, y: int, confirm_token: str | None = None) -> dict:
+        """Double click physical screen coordinates. Disabled by default."""
+        with audit.call("ga_mouse_double_click", transport, risk_level="high"):
+            if not config.enable_desktop:
+                raise SafetyError("ga_mouse_double_click is disabled by policy")
+            require_confirm(config, confirm_token, "ga_mouse_double_click")
+            ctrl = _ctrl()
+            ctrl.SetCursorPos((int(x), int(y)))
+            ctrl.MouseDClick()
+            return {"ok": True, "x": int(x), "y": int(y)}
+
+    @mcp.tool()
+    def ga_mouse_right_click(x: int, y: int, confirm_token: str | None = None) -> dict:
+        """Right click physical screen coordinates. Disabled by default."""
+        with audit.call("ga_mouse_right_click", transport, risk_level="high"):
+            if not config.enable_desktop:
+                raise SafetyError("ga_mouse_right_click is disabled by policy")
+            require_confirm(config, confirm_token, "ga_mouse_right_click")
+            ctrl = _ctrl()
+            ctrl.SetCursorPos((int(x), int(y)))
+            if platform.system() == "Windows":
+                ctrl.win32api.mouse_event(ctrl.win32con.MOUSEEVENTF_RIGHTDOWN, 0, 0)
+                time.sleep(0.05)
+                ctrl.win32api.mouse_event(ctrl.win32con.MOUSEEVENTF_RIGHTUP, 0, 0)
+            elif hasattr(ctrl, "RightClick"):
+                ctrl.RightClick()
+            else:
+                raise SafetyError("Right click is not supported on this platform")
+            return {"ok": True, "x": int(x), "y": int(y)}

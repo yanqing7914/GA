@@ -9,9 +9,10 @@ from ..audit import AuditLogger
 from ..config import McpConfig
 from ..safety import (
     SafetyError,
-    check_python_code,
+    check_python_risks,
     check_powershell_command,
     clamp_timeout,
+    require_confirm,
     resolve_allowed_path,
     truncate_text,
 )
@@ -79,12 +80,21 @@ def _run(cmd: list[str], cwd: str, timeout: int, max_output: int) -> dict:
 
 def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None:
     @mcp.tool()
-    def ga_run_python_sandboxed(code: str, cwd: str = ".", timeout_seconds: int | None = None) -> dict:
+    def ga_run_python_sandboxed(
+        code: str,
+        cwd: str = ".",
+        timeout_seconds: int | None = None,
+        confirm_token: str | None = None,
+    ) -> dict:
         """Run a short Python snippet in an allowed cwd. Disabled by default."""
         with audit.call("ga_run_python_sandboxed", transport, cwd=cwd) as audit_record:
             if not config.enable_python:
                 raise SafetyError("ga_run_python_sandboxed is disabled by policy")
-            check_python_code(code)
+            risks = check_python_risks(code)
+            if risks:
+                audit_record["risk_level"] = "high"
+                audit_record["python_risks"] = risks
+                require_confirm(config, confirm_token, f"ga_run_python_sandboxed risks={risks}")
             workdir = resolve_allowed_path(config, cwd)
             if not workdir.is_dir():
                 raise NotADirectoryError("cwd must be a directory")

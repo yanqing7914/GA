@@ -79,21 +79,25 @@ ingress:
 
 ## 4. OpenClaw MCP 配置
 
+OpenClaw 当前使用 `mcp.servers` 配置 MCP server。远程服务可使用 `url` + `transport`。
+
 ```json
 {
-  "mcpServers": {
-    "genericagent": {
-      "transport": "sse",
-      "url": "https://genericagent-mcp.example.com/sse",
-      "headers": {
-        "Authorization": "Bearer ${GA_MCP_TOKEN}"
+  "mcp": {
+    "servers": {
+      "genericagent": {
+        "transport": "sse",
+        "url": "https://genericagent-mcp.example.com/sse",
+        "headers": {
+          "Authorization": "Bearer ${GA_MCP_TOKEN}"
+        }
       }
     }
   }
 }
 ```
 
-具体字段以当前 OpenClaw 版本为准。
+如果 OpenClaw 版本升级导致字段变动，以当前 OpenClaw 文档为准。
 
 ## 5. 验收
 

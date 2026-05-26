@@ -41,6 +41,8 @@ all-frontends = [
 mcp = [
     "mcp>=1.27",
     "pillow>=9.0",
+    "websockets>=12.0",
+    "pyautogui>=0.9.54",
 ]
 
 [build-system]
@@ -54,6 +56,7 @@ packages = [
     "genericagent",
     "genericagent.mcp_server",
     "genericagent.mcp_server.tools",
+    "genericagent.mcp_server.vendor_ext",
 ]
 
 [project.scripts]

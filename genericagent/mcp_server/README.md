@@ -15,8 +15,11 @@ pip install -e ".[mcp]"
 export GA_MCP_ALLOWED_ROOTS="/path/to/GenericAgent"
 export GA_MCP_AUDIT_LOG="$HOME/.genericagent/mcp_audit.log"
 
-export GA_MCP_ENABLE_SCREENSHOT=false
-export GA_MCP_ENABLE_OCR=false
+# Read-only wow tools default to true.
+export GA_MCP_ENABLE_SCREENSHOT=true
+export GA_MCP_ENABLE_OCR=true
+
+# Mutating or heavyweight tools default to false.
 export GA_MCP_ENABLE_PYTHON=false
 export GA_MCP_ENABLE_POWERSHELL=false
 export GA_MCP_ENABLE_DESKTOP=false
@@ -25,6 +28,7 @@ export GA_MCP_ENABLE_BROWSER_CDP=false
 export GA_MCP_ENABLE_UI_DETECT=false
 export GA_MCP_ENABLE_SKILLS=false
 export GA_MCP_ENABLE_MEMORY=false
+export GA_MCP_ENABLE_CODING_AGENTS=false
 
 # Required for mutating Phase 2 actions such as mouse click or adb tap.
 export GA_MCP_CONFIRM_TOKEN="replace-with-confirm-secret"
@@ -75,11 +79,11 @@ Default enabled:
 - `ga_search_project`
 - `ga_read_project_file`
 - `ga_task_dryrun`
+- `ga_screenshot`
+- `ga_ocr_screenshot`
 
 Disabled until explicitly enabled:
 
-- `ga_screenshot`
-- `ga_ocr_screenshot`
 - `ga_run_python_sandboxed`
 - `ga_run_powershell_sandboxed`
 
@@ -88,17 +92,29 @@ Phase 2 tools, also disabled by default:
 - `ga_desktop_status`
 - `ga_mouse_move`
 - `ga_mouse_click`
+- `ga_mouse_double_click`
+- `ga_mouse_right_click`
+- `ga_mouse_drag`
 - `ga_key_press`
+- `ga_keyboard_type`
 - `ga_adb_devices`
 - `ga_adb_screenshot`
 - `ga_adb_tap`
 - `ga_adb_text`
+- `ga_adb_swipe`
+- `ga_adb_keyevent`
 - `ga_cdp_status`
 - `ga_cdp_tabs`
+- `ga_cdp_execute_js`
+- `ga_cdp_screenshot`
+- `ga_cdp_scan_page`
 - `ga_ui_detect_screenshot`
 - `ga_skill_search`
 - `ga_skill_run`
 - `ga_memory_query`
+- `ga_run_claude_code`
+- `ga_run_codex`
+- `ga_cursor_open`
 
 The execution tools are policy-restricted helpers, not a strong OS sandbox.
 They use allowlisted working directories, static risk checks, timeouts, trimmed
@@ -111,18 +127,21 @@ Mutating Phase 2 tools require both their feature flag and a matching
 
 ## OpenClaw Example
 
+OpenClaw currently uses `mcp.servers` for MCP server configuration. Remote
+servers can use `url` plus `transport`.
+
 ```json
 {
-  "mcpServers": {
-    "genericagent": {
-      "transport": "sse",
-      "url": "https://genericagent-mcp.example.com/sse",
-      "headers": {
-        "Authorization": "Bearer ${GA_MCP_TOKEN}"
+  "mcp": {
+    "servers": {
+      "genericagent": {
+        "transport": "sse",
+        "url": "https://genericagent-mcp.example.com/sse",
+        "headers": {
+          "Authorization": "Bearer ${GA_MCP_TOKEN}"
+        }
       }
     }
   }
 }
 ```
-
-Adjust field names to the current OpenClaw MCP configuration format.

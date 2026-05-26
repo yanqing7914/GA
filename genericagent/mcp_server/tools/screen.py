@@ -58,10 +58,23 @@ def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None
             if max_width and image.width > max_width:
                 ratio = max_width / float(image.width)
                 image = image.resize((max_width, max(1, int(image.height * ratio))))
-            result = ocr_image(image)
+            try:
+                result = ocr_image(image)
+            except Exception as exc:
+                return {
+                    "ok": False,
+                    "text": "",
+                    "lines": [],
+                    "region": region,
+                    "ts": int(time.time()),
+                    "truncated": False,
+                    "error": f"OCR failed: {type(exc).__name__}",
+                    "hint": "Install/configure OCR dependencies such as rapidocr-onnxruntime for full OCR support.",
+                }
             text = str(result.get("text", ""))
             truncated = len(text) > config.max_output_chars
             return {
+                "ok": True,
                 "text": text[: config.max_output_chars],
                 "lines": result.get("lines", [])[:200],
                 "region": region,

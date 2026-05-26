@@ -830,8 +830,8 @@ export GA_MCP_TOKEN="replace-with-secret"
 export GA_MCP_ALLOWED_ROOTS="/path/to/GenericAgent"
 export GA_MCP_AUDIT_LOG="$HOME/.genericagent/mcp_audit.log"
 
-export GA_MCP_ENABLE_SCREENSHOT=false
-export GA_MCP_ENABLE_OCR=false
+export GA_MCP_ENABLE_SCREENSHOT=true
+export GA_MCP_ENABLE_OCR=true
 export GA_MCP_ENABLE_PYTHON=false
 export GA_MCP_ENABLE_POWERSHELL=false
 export GA_MCP_ENABLE_DESKTOP=false
@@ -840,6 +840,7 @@ export GA_MCP_ENABLE_BROWSER_CDP=false
 export GA_MCP_ENABLE_UI_DETECT=false
 export GA_MCP_ENABLE_SKILLS=false
 export GA_MCP_ENABLE_MEMORY=false
+export GA_MCP_ENABLE_CODING_AGENTS=false
 export GA_MCP_CONFIRM_TOKEN="replace-with-confirm-secret"
 
 export GA_MCP_MAX_OUTPUT_CHARS=20000

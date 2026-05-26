@@ -80,3 +80,41 @@ def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None
             require_confirm(config, confirm_token, "ga_adb_text")
             safe = text.replace(" ", "%s")
             return _adb(config, ["shell", "input", "text", safe], timeout=10)
+
+    @mcp.tool()
+    def ga_adb_swipe(
+        from_x: int,
+        from_y: int,
+        to_x: int,
+        to_y: int,
+        duration_ms: int = 300,
+        confirm_token: str | None = None,
+    ) -> dict:
+        """Swipe on Android device. Requires confirm token."""
+        with audit.call("ga_adb_swipe", transport, risk_level="medium"):
+            if not config.enable_adb:
+                raise SafetyError("ga_adb_swipe is disabled by policy")
+            require_confirm(config, confirm_token, "ga_adb_swipe")
+            return _adb(
+                config,
+                [
+                    "shell",
+                    "input",
+                    "swipe",
+                    str(int(from_x)),
+                    str(int(from_y)),
+                    str(int(to_x)),
+                    str(int(to_y)),
+                    str(int(duration_ms)),
+                ],
+                timeout=10,
+            )
+
+    @mcp.tool()
+    def ga_adb_keyevent(keycode: int | str, confirm_token: str | None = None) -> dict:
+        """Send an Android keyevent, e.g. 3 for HOME or 4 for BACK. Requires confirm token."""
+        with audit.call("ga_adb_keyevent", transport, risk_level="medium"):
+            if not config.enable_adb:
+                raise SafetyError("ga_adb_keyevent is disabled by policy")
+            require_confirm(config, confirm_token, "ga_adb_keyevent")
+            return _adb(config, ["shell", "input", "keyevent", str(keycode)], timeout=10)

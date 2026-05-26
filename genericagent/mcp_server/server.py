@@ -8,7 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from .audit import AuditLogger
 from .auth import StaticBearerTokenVerifier
 from .config import McpConfig
-from .tools import adb, browser_cdp, desktop, dryrun, execute, files, screen, skills, status, ui
+from .tools import adb, browser_cdp, coding_agents, desktop, dryrun, execute, files, screen, skills, status, ui
 
 
 def build_server(config: McpConfig, transport: str, require_auth: bool = False, host: str = "127.0.0.1", port: int = 5050) -> FastMCP:
@@ -48,19 +48,64 @@ def build_server(config: McpConfig, transport: str, require_auth: bool = False, 
     if config.enable_powershell:
         enabled_tools.append("ga_run_powershell_sandboxed")
     if config.enable_desktop:
-        enabled_tools.extend(["ga_desktop_status", "ga_mouse_move", "ga_mouse_click", "ga_key_press"])
+        enabled_tools.extend(
+            [
+                "ga_desktop_status",
+                "ga_mouse_move",
+                "ga_mouse_click",
+                "ga_key_press",
+                "ga_keyboard_type",
+                "ga_mouse_drag",
+                "ga_mouse_double_click",
+                "ga_mouse_right_click",
+            ]
+        )
     else:
         enabled_tools.append("ga_desktop_status")
     if config.enable_adb:
-        enabled_tools.extend(["ga_adb_devices", "ga_adb_screenshot", "ga_adb_tap", "ga_adb_text"])
+        enabled_tools.extend(
+            [
+                "ga_adb_devices",
+                "ga_adb_screenshot",
+                "ga_adb_tap",
+                "ga_adb_text",
+                "ga_adb_swipe",
+                "ga_adb_keyevent",
+            ]
+        )
     if config.enable_browser_cdp:
-        enabled_tools.extend(["ga_cdp_status", "ga_cdp_tabs"])
+        enabled_tools.extend(["ga_cdp_status", "ga_cdp_tabs", "ga_cdp_execute_js", "ga_cdp_screenshot", "ga_cdp_scan_page"])
     if config.enable_ui_detect:
         enabled_tools.append("ga_ui_detect_screenshot")
     if config.enable_skills:
         enabled_tools.extend(["ga_skill_search", "ga_skill_run"])
     if config.enable_memory:
         enabled_tools.append("ga_memory_query")
+    if config.enable_coding_agents:
+        enabled_tools.extend(["ga_run_claude_code", "ga_run_codex", "ga_cursor_open"])
+    disabled_count = 0
+    if not config.enable_screenshot:
+        disabled_count += 1
+    if not config.enable_ocr:
+        disabled_count += 1
+    if not config.enable_python:
+        disabled_count += 1
+    if not config.enable_powershell:
+        disabled_count += 1
+    if not config.enable_desktop:
+        disabled_count += 7
+    if not config.enable_adb:
+        disabled_count += 6
+    if not config.enable_browser_cdp:
+        disabled_count += 5
+    if not config.enable_ui_detect:
+        disabled_count += 1
+    if not config.enable_skills:
+        disabled_count += 2
+    if not config.enable_memory:
+        disabled_count += 1
+    if not config.enable_coding_agents:
+        disabled_count += 3
 
     @mcp.custom_route("/healthz", methods=["GET"], include_in_schema=False)
     async def healthz(request):
@@ -73,7 +118,7 @@ def build_server(config: McpConfig, transport: str, require_auth: bool = False, 
             }
         )
 
-    status.register(mcp, config, audit, transport, enabled_tools)
+    status.register(mcp, config, audit, transport, enabled_tools, disabled_count)
     files.register(mcp, config, audit, transport)
     dryrun.register(mcp, config, audit, transport)
     screen.register(mcp, config, audit, transport)
@@ -83,4 +128,5 @@ def build_server(config: McpConfig, transport: str, require_auth: bool = False, 
     browser_cdp.register(mcp, config, audit, transport)
     ui.register(mcp, config, audit, transport)
     skills.register(mcp, config, audit, transport)
+    coding_agents.register(mcp, config, audit, transport)
     return mcp

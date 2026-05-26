@@ -6,9 +6,22 @@ from ..config import McpConfig
 
 def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None:
     @mcp.tool()
-    def ga_task_dryrun(task: str) -> dict:
+    def ga_task_dryrun(task: str, mode: str = "static") -> dict:
         """Estimate required capabilities for a natural-language task without executing it."""
         with audit.call("ga_task_dryrun", transport) as audit_record:
+            if mode == "llm":
+                audit_record["risk_level"] = "unknown"
+                return {
+                    "delegate_to_client": True,
+                    "recommended_path": "Client LLM",
+                    "instruction": (
+                        "Decompose the task into affected resources, capabilities, side effects, "
+                        "and confirmation needs. Then call ga_task_dryrun with mode='static' "
+                        "on the decomposed plan to verify policy gates."
+                    ),
+                }
+            if mode != "static":
+                raise ValueError("mode must be 'static' or 'llm'")
             text = task.lower()
             required: set[str] = set()
             if any(word in text for word in ("browser", "chrome", "网页", "浏览器", "登录", "下载")):

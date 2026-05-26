@@ -24,7 +24,7 @@ def _git_commit(config: McpConfig) -> str | None:
     return proc.stdout.strip() or None
 
 
-def register(mcp, config: McpConfig, audit: AuditLogger, transport: str, enabled_tools: list[str]) -> None:
+def register(mcp, config: McpConfig, audit: AuditLogger, transport: str, enabled_tools: list[str], disabled_tools_count: int) -> None:
     @mcp.tool()
     def ga_status() -> dict:
         """Return GenericAgent MCP server status and enabled capabilities."""
@@ -35,6 +35,8 @@ def register(mcp, config: McpConfig, audit: AuditLogger, transport: str, enabled
                 "version": "0.1.0",
                 "transport": transport,
                 "enabled_tools": enabled_tools,
+                "available_tools_count": len(enabled_tools),
+                "disabled_tools_count": disabled_tools_count,
                 "safety": config.capability_summary(),
                 "cwd": Path.cwd().name,
                 "repo": {
