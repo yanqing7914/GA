@@ -1,0 +1,86 @@
+from __future__ import annotations
+
+from starlette.responses import JSONResponse
+
+from mcp.server.auth.settings import AuthSettings
+from mcp.server.fastmcp import FastMCP
+
+from .audit import AuditLogger
+from .auth import StaticBearerTokenVerifier
+from .config import McpConfig
+from .tools import adb, browser_cdp, desktop, dryrun, execute, files, screen, skills, status, ui
+
+
+def build_server(config: McpConfig, transport: str, require_auth: bool = False, host: str = "127.0.0.1", port: int = 5050) -> FastMCP:
+    token_verifier = None
+    auth_settings = None
+    if require_auth:
+        if not config.token:
+            raise RuntimeError("GA_MCP_TOKEN must be set for authenticated HTTP transport")
+        token_verifier = StaticBearerTokenVerifier(config.token)
+        base_url = f"http://{host}:{port}"
+        auth_settings = AuthSettings(issuer_url=base_url, resource_server_url=base_url, required_scopes=["ga:mcp"])
+
+    mcp = FastMCP(
+        "genericagent-mcp",
+        host=host,
+        port=port,
+        sse_path="/sse",
+        message_path="/messages/",
+        streamable_http_path="/mcp",
+        token_verifier=token_verifier,
+        auth=auth_settings,
+    )
+    audit = AuditLogger(config.audit_log)
+    enabled_tools = [
+        "ga_status",
+        "ga_list_project_files",
+        "ga_search_project",
+        "ga_read_project_file",
+        "ga_task_dryrun",
+    ]
+    if config.enable_screenshot:
+        enabled_tools.append("ga_screenshot")
+    if config.enable_ocr:
+        enabled_tools.append("ga_ocr_screenshot")
+    if config.enable_python:
+        enabled_tools.append("ga_run_python_sandboxed")
+    if config.enable_powershell:
+        enabled_tools.append("ga_run_powershell_sandboxed")
+    if config.enable_desktop:
+        enabled_tools.extend(["ga_desktop_status", "ga_mouse_move", "ga_mouse_click", "ga_key_press"])
+    else:
+        enabled_tools.append("ga_desktop_status")
+    if config.enable_adb:
+        enabled_tools.extend(["ga_adb_devices", "ga_adb_screenshot", "ga_adb_tap", "ga_adb_text"])
+    if config.enable_browser_cdp:
+        enabled_tools.extend(["ga_cdp_status", "ga_cdp_tabs"])
+    if config.enable_ui_detect:
+        enabled_tools.append("ga_ui_detect_screenshot")
+    if config.enable_skills:
+        enabled_tools.extend(["ga_skill_search", "ga_skill_run"])
+    if config.enable_memory:
+        enabled_tools.append("ga_memory_query")
+
+    @mcp.custom_route("/healthz", methods=["GET"], include_in_schema=False)
+    async def healthz(request):
+        return JSONResponse(
+            {
+                "ok": True,
+                "service": "genericagent-mcp",
+                "version": "0.1.0",
+                "transport": transport,
+            }
+        )
+
+    status.register(mcp, config, audit, transport, enabled_tools)
+    files.register(mcp, config, audit, transport)
+    dryrun.register(mcp, config, audit, transport)
+    screen.register(mcp, config, audit, transport)
+    execute.register(mcp, config, audit, transport)
+    desktop.register(mcp, config, audit, transport)
+    adb.register(mcp, config, audit, transport)
+    browser_cdp.register(mcp, config, audit, transport)
+    ui.register(mcp, config, audit, transport)
+    skills.register(mcp, config, audit, transport)
+    return mcp

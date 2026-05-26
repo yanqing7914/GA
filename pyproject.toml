@@ -38,6 +38,10 @@ all-frontends = [
     "wecom-aibot-sdk>=1.0",
     "dingtalk-stream>=0.20",
 ]
+mcp = [
+    "mcp>=1.27",
+    "pillow>=9.0",
+]
 
 [build-system]
 requires = ["setuptools>=68.0"]
@@ -45,7 +49,13 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 py-modules = []
-packages = ["ga_cli"]
+packages = [
+    "ga_cli",
+    "genericagent",
+    "genericagent.mcp_server",
+    "genericagent.mcp_server.tools",
+]
 
 [project.scripts]
 ga = "ga_cli.cli:main"
+ga-mcp-server = "genericagent.mcp_server.ga_mcp_server:main"
