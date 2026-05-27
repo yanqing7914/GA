@@ -6,7 +6,7 @@ from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
 
 from .audit import AuditLogger
-from .auth import StaticBearerMiddleware, StaticBearerTokenVerifier
+from .auth import SseNoBufferingMiddleware, StaticBearerMiddleware, StaticBearerTokenVerifier
 from .config import McpConfig
 from .tools import adb, browser_cdp, coding_agents, desktop, dryrun, execute, files, screen, skills, status, ui
 
@@ -156,6 +156,7 @@ def _install_static_bearer_auth(mcp: FastMCP, config: McpConfig) -> None:
 
     def sse_app(mount_path: str | None = None):
         app = original_sse_app(mount_path)
+        app.add_middleware(SseNoBufferingMiddleware, sse_path=mcp.settings.sse_path)
         app.add_middleware(StaticBearerMiddleware, token=config.token or "", protected_prefixes=protected)
         return app
 
