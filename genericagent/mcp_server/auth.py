@@ -58,18 +58,14 @@ class SseNoBufferingMiddleware:
             await self.app(scope, receive, send)
             return
 
-        first_body = True
-
         async def send_with_headers(message):
-            nonlocal first_body
             if message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
                 headers = [(key, value) for key, value in headers if key.lower() not in {b"cache-control", b"x-accel-buffering"}]
                 headers.append((b"cache-control", b"no-cache, no-transform"))
                 headers.append((b"x-accel-buffering", b"no"))
                 message["headers"] = headers
-            elif message["type"] == "http.response.body" and first_body and message.get("body"):
-                first_body = False
+            elif message["type"] == "http.response.body" and message.get("body"):
                 # Some reverse tunnels buffer tiny SSE chunks; a comment padding
                 # frame keeps MCP events intact while forcing an early flush.
                 message["body"] = message.get("body", b"") + b": " + (b" " * 131072) + b"\r\n\r\n"
