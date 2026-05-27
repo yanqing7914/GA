@@ -25,6 +25,10 @@ class FakeMcp:
 class FakeDesktopCtrl:
     def __init__(self):
         self.calls = []
+        self.VK_CODE = {"r": 0x52, "enter": 0x0D}
+        self.win32api = self
+        self.win32con = self
+        self.KEYEVENTF_KEYUP = 0x0002
 
     def SetCursorPos(self, pos):
         self.calls.append(("SetCursorPos", pos))
@@ -46,6 +50,9 @@ class FakeDesktopCtrl:
 
     def RightClick(self):
         self.calls.append(("RightClick",))
+
+    def keybd_event(self, vk, scan, flags, extra):
+        self.calls.append(("keybd_event", vk, flags))
 
 
 def make_config(root: Path, **overrides):
@@ -129,6 +136,16 @@ class V3ToolHappyPathTests(unittest.TestCase):
             result = self.mcp.tools["ga_mouse_right_click"](9, 10, confirm_token="ok")
         self.assertEqual(result["y"], 10)
         self.assertIn(("RightClick",), ctrl.calls)
+
+    def test_ga_key_press_accepts_windows_aliases(self):
+        ctrl = FakeDesktopCtrl()
+        desktop.register(self.mcp, self.config, self.audit, "unit")
+        with patch.object(desktop, "_ctrl", return_value=ctrl), patch.object(desktop.platform, "system", return_value="Windows"):
+            result = self.mcp.tools["ga_key_press"]("win+r", confirm_token="ok")
+        self.assertEqual(result["keys"], "win+r")
+        self.assertIn(("keybd_event", 0x5B, 0), ctrl.calls)
+        self.assertIn(("keybd_event", 0x52, 0), ctrl.calls)
+        self.assertIn(("keybd_event", 0x5B, ctrl.KEYEVENTF_KEYUP), ctrl.calls)
 
     def test_desktop_tools_require_confirm_token(self):
         desktop.register(self.mcp, self.config, self.audit, "unit")

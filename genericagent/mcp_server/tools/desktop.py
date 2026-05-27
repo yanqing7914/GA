@@ -79,6 +79,52 @@ def _move_to(ctrl, x: int, y: int, duration: float) -> None:
     ctrl.SetCursorPos((x, y))
 
 
+_KEY_ALIASES = {
+    "cmd": "left_win",
+    "cmd_l": "left_win",
+    "command": "left_win",
+    "meta": "left_win",
+    "super": "left_win",
+    "super_l": "left_win",
+    "win": "left_win",
+    "winleft": "left_win",
+    "windows": "left_win",
+}
+
+_WINDOWS_EXTRA_VK = {
+    "left_win": 0x5B,
+    "right_win": 0x5C,
+}
+
+
+def _key_parts(keys: str) -> list[str]:
+    return [_KEY_ALIASES.get(part.strip().lower(), part.strip().lower()) for part in keys.split("+") if part.strip()]
+
+
+def _press_keys(ctrl, keys: str) -> None:
+    parts = _key_parts(keys)
+    if not parts:
+        raise SafetyError("No keys were provided")
+    if platform.system() != "Windows":
+        ctrl.Press("+".join(parts))
+        return
+
+    vk_code = getattr(ctrl, "VK_CODE", {})
+    pressed: list[int] = []
+    try:
+        for part in parts:
+            vk = _WINDOWS_EXTRA_VK.get(part, vk_code.get(part))
+            if vk is None:
+                raise SafetyError(f"Unsupported key: {part}")
+            ctrl.win32api.keybd_event(vk, 0, 0, 0)
+            pressed.append(vk)
+            time.sleep(0.02)
+    finally:
+        for vk in reversed(pressed):
+            time.sleep(0.02)
+            ctrl.win32api.keybd_event(vk, 0, ctrl.win32con.KEYEVENTF_KEYUP, 0)
+
+
 def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None:
     @mcp.tool()
     def ga_desktop_status() -> dict:
@@ -120,7 +166,7 @@ def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None
                 raise SafetyError("ga_key_press is disabled by policy")
             require_confirm(config, confirm_token, "ga_key_press")
             ctrl = _ctrl()
-            ctrl.Press(keys)
+            _press_keys(ctrl, keys)
             return {"ok": True, "keys": keys}
 
     @mcp.tool()
