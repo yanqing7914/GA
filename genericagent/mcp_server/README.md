@@ -60,6 +60,20 @@ For her/OpenClaw through a tunnel:
 python ga_mcp_server.py --transport sse --host 127.0.0.1 --port 5050
 ```
 
+HTTP transports use `--auth-mode static` by default. In this mode
+`GA_MCP_TOKEN` is the exact bearer token accepted by the server:
+
+```http
+Authorization: Bearer replace-with-secret
+```
+
+The legacy MCP SDK OAuth resource-server metadata mode is still available only
+when explicitly requested:
+
+```bash
+python ga_mcp_server.py --transport sse --auth-mode oauth --host 127.0.0.1 --port 5050
+```
+
 The server refuses to listen on `0.0.0.0`. Use a named Cloudflare Tunnel for remote access.
 
 ## Health Check

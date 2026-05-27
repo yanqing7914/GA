@@ -14,6 +14,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=5050)
     parser.add_argument("--log-level", default="info")
     parser.add_argument(
+        "--auth-mode",
+        choices=["static", "oauth"],
+        default="static",
+        help="HTTP auth mode. static accepts GA_MCP_TOKEN as a direct Bearer token; oauth uses MCP SDK resource metadata.",
+    )
+    parser.add_argument(
         "--allow-unauthenticated-local",
         action="store_true",
         help="Allow unauthenticated HTTP only for explicit local debugging.",
@@ -31,7 +37,14 @@ def main(argv: list[str] | None = None) -> None:
     if require_auth and not config.token:
         raise SystemExit("GA_MCP_TOKEN is required for HTTP/SSE transport")
 
-    mcp = build_server(config, args.transport, require_auth=require_auth, host=args.host, port=args.port)
+    mcp = build_server(
+        config,
+        args.transport,
+        require_auth=require_auth,
+        host=args.host,
+        port=args.port,
+        auth_mode=args.auth_mode,
+    )
     try:
         mcp.run(transport=args.transport)
     except KeyboardInterrupt:

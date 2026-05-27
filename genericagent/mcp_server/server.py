@@ -6,20 +6,29 @@ from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
 
 from .audit import AuditLogger
-from .auth import StaticBearerTokenVerifier
+from .auth import StaticBearerMiddleware, StaticBearerTokenVerifier
 from .config import McpConfig
 from .tools import adb, browser_cdp, coding_agents, desktop, dryrun, execute, files, screen, skills, status, ui
 
 
-def build_server(config: McpConfig, transport: str, require_auth: bool = False, host: str = "127.0.0.1", port: int = 5050) -> FastMCP:
+def build_server(
+    config: McpConfig,
+    transport: str,
+    require_auth: bool = False,
+    host: str = "127.0.0.1",
+    port: int = 5050,
+    auth_mode: str = "static",
+) -> FastMCP:
     token_verifier = None
     auth_settings = None
-    if require_auth:
+    if require_auth and auth_mode == "oauth":
         if not config.token:
             raise RuntimeError("GA_MCP_TOKEN must be set for authenticated HTTP transport")
         token_verifier = StaticBearerTokenVerifier(config.token)
         base_url = f"http://{host}:{port}"
         auth_settings = AuthSettings(issuer_url=base_url, resource_server_url=base_url, required_scopes=["ga:mcp"])
+    elif require_auth and not config.token:
+        raise RuntimeError("GA_MCP_TOKEN must be set for authenticated HTTP transport")
 
     mcp = FastMCP(
         "genericagent-mcp",
@@ -31,6 +40,9 @@ def build_server(config: McpConfig, transport: str, require_auth: bool = False, 
         token_verifier=token_verifier,
         auth=auth_settings,
     )
+    if require_auth and auth_mode == "static":
+        _install_static_bearer_auth(mcp, config)
+
     audit = AuditLogger(config.audit_log)
     enabled_tools = [
         "ga_status",
@@ -130,3 +142,27 @@ def build_server(config: McpConfig, transport: str, require_auth: bool = False, 
     skills.register(mcp, config, audit, transport)
     coding_agents.register(mcp, config, audit, transport)
     return mcp
+
+
+def _install_static_bearer_auth(mcp: FastMCP, config: McpConfig) -> None:
+    protected = (
+        mcp.settings.sse_path,
+        mcp.settings.message_path,
+        mcp.settings.streamable_http_path,
+    )
+
+    original_sse_app = mcp.sse_app
+    original_streamable_http_app = mcp.streamable_http_app
+
+    def sse_app(mount_path: str | None = None):
+        app = original_sse_app(mount_path)
+        app.add_middleware(StaticBearerMiddleware, token=config.token or "", protected_prefixes=protected)
+        return app
+
+    def streamable_http_app():
+        app = original_streamable_http_app()
+        app.add_middleware(StaticBearerMiddleware, token=config.token or "", protected_prefixes=protected)
+        return app
+
+    mcp.sse_app = sse_app  # type: ignore[method-assign]
+    mcp.streamable_http_app = streamable_http_app  # type: ignore[method-assign]

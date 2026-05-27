@@ -112,3 +112,8 @@ OpenClaw 当前使用 `mcp.servers` 配置 MCP server。远程服务可使用 `u
 ```text
 frontends/genericagent_acp_bridge.py
 ```
+# Auth note
+
+HTTP/SSE now defaults to static bearer auth. `GA_MCP_TOKEN` is the direct
+access token for OpenClaw/her. Do not use OAuth unless the server is started
+with `--auth-mode oauth`.
