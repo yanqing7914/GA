@@ -62,6 +62,7 @@ class McpConfig:
     enable_memory: bool
     enable_coding_agents: bool
     confirm_token: str | None
+    skip_confirm: bool
     adb_path: str
     cdp_host: str
     cdp_port: int
@@ -94,6 +95,7 @@ class McpConfig:
             enable_memory=_env_bool("GA_MCP_ENABLE_MEMORY", False),
             enable_coding_agents=_env_bool("GA_MCP_ENABLE_CODING_AGENTS", False),
             confirm_token=os.getenv("GA_MCP_CONFIRM_TOKEN"),
+            skip_confirm=_env_bool("GA_MCP_SKIP_CONFIRM", False),
             adb_path=os.getenv("GA_MCP_ADB_PATH", "adb"),
             cdp_host=os.getenv("GA_MCP_CDP_HOST", "127.0.0.1"),
             cdp_port=_env_int("GA_MCP_CDP_PORT", 9222),
@@ -118,4 +120,5 @@ class McpConfig:
             "skills_enabled": self.enable_skills,
             "memory_enabled": self.enable_memory,
             "coding_agents_enabled": self.enable_coding_agents,
+            "confirm_skipped": self.skip_confirm,
         }

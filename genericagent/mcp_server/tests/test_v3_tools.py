@@ -66,6 +66,7 @@ def make_config(root: Path, **overrides):
         enable_memory=False,
         enable_coding_agents=True,
         confirm_token="ok",
+        skip_confirm=False,
         adb_path="adb",
         cdp_host="127.0.0.1",
         cdp_port=9222,

@@ -154,6 +154,8 @@ def check_python_risks(code: str) -> list[str]:
 
 
 def require_confirm(config, confirm_token: str | None, action: str) -> None:
+    if getattr(config, "skip_confirm", False):
+        return
     expected = getattr(config, "confirm_token", None)
     if not expected:
         raise SafetyError(f"{action} requires GA_MCP_CONFIRM_TOKEN to be configured")

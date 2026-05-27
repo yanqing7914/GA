@@ -33,6 +33,9 @@ export GA_MCP_ENABLE_CODING_AGENTS=false
 # Required for mutating Phase 2 actions such as mouse click or adb tap.
 export GA_MCP_CONFIRM_TOKEN="replace-with-confirm-secret"
 
+# Optional local dev mode. Keep false unless you trust the connected client.
+export GA_MCP_SKIP_CONFIRM=false
+
 export GA_MCP_MAX_OUTPUT_CHARS=20000
 export GA_MCP_DEFAULT_TIMEOUT_SECONDS=10
 export GA_MCP_MAX_TIMEOUT_SECONDS=30

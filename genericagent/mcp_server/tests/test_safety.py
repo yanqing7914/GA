@@ -28,6 +28,7 @@ class SafetyTests(unittest.TestCase):
                 enable_memory=False,
                 enable_coding_agents=False,
                 confirm_token=None,
+                skip_confirm=False,
                 adb_path="adb",
                 cdp_host="127.0.0.1",
                 cdp_port=9222,
@@ -69,6 +70,7 @@ class SafetyTests(unittest.TestCase):
             self.assertTrue(config.enable_ocr)
             self.assertFalse(config.enable_python)
             self.assertFalse(config.enable_desktop)
+            self.assertFalse(config.skip_confirm)
         finally:
             for key, value in old.items():
                 if value is None:
