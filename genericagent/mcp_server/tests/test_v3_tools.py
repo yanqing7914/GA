@@ -111,6 +111,29 @@ class V3ToolHappyPathTests(unittest.TestCase):
         self.assertEqual(result, {"ok": True, "chars": 5})
         self.assertIn(("TypeUnicode", "hello", 0.005), ctrl.calls)
 
+    def test_ga_window_list_happy_path(self):
+        desktop.register(self.mcp, self.config, self.audit, "unit")
+        with patch.object(desktop, "_window_list", return_value=[{"hwnd": 1, "title": "飞书"}]) as list_windows:
+            result = self.mcp.tools["ga_window_list"]("飞书")
+        self.assertEqual(result["windows"][0]["title"], "飞书")
+        list_windows.assert_called_once_with("飞书", 30)
+
+    def test_ga_window_focus_happy_path(self):
+        desktop.register(self.mcp, self.config, self.audit, "unit")
+        with patch.object(desktop, "_focus_window", return_value={"hwnd": 1, "title": "飞书"}) as focus_window:
+            result = self.mcp.tools["ga_window_focus"]("飞书", confirm_token="ok")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["window"]["hwnd"], 1)
+        focus_window.assert_called_once_with("飞书", None)
+
+    def test_ga_keyboard_type_window_happy_path(self):
+        ctrl = FakeDesktopCtrl()
+        desktop.register(self.mcp, self.config, self.audit, "unit")
+        with patch.object(desktop, "_focus_window", return_value={"hwnd": 1, "title": "飞书"}), patch.object(desktop, "_ctrl", return_value=ctrl):
+            result = self.mcp.tools["ga_keyboard_type_window"]("飞书", "hello", delay_ms=5, confirm_token="ok")
+        self.assertEqual(result["chars"], 5)
+        self.assertIn(("TypeUnicode", "hello", 0.005), ctrl.calls)
+
     def test_ga_mouse_drag_happy_path(self):
         ctrl = FakeDesktopCtrl()
         desktop.register(self.mcp, self.config, self.audit, "unit")

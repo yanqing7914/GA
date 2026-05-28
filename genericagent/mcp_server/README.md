@@ -114,6 +114,9 @@ Phase 2 tools, also disabled by default:
 - `ga_mouse_drag`
 - `ga_key_press`
 - `ga_keyboard_type`
+- `ga_window_list`
+- `ga_window_focus`
+- `ga_keyboard_type_window`
 - `ga_adb_devices`
 - `ga_adb_screenshot`
 - `ga_adb_tap`

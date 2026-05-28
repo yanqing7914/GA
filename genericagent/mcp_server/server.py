@@ -70,6 +70,9 @@ def build_server(
                 "ga_mouse_drag",
                 "ga_mouse_double_click",
                 "ga_mouse_right_click",
+                "ga_window_list",
+                "ga_window_focus",
+                "ga_keyboard_type_window",
             ]
         )
     else:
@@ -105,7 +108,7 @@ def build_server(
     if not config.enable_powershell:
         disabled_count += 1
     if not config.enable_desktop:
-        disabled_count += 7
+        disabled_count += 10
     if not config.enable_adb:
         disabled_count += 6
     if not config.enable_browser_cdp:

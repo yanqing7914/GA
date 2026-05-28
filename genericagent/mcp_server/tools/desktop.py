@@ -125,6 +125,91 @@ def _press_keys(ctrl, keys: str) -> None:
             ctrl.win32api.keybd_event(vk, 0, ctrl.win32con.KEYEVENTF_KEYUP, 0)
 
 
+def _window_list_windows(title_contains: str = "", max_results: int = 30) -> list[dict]:
+    import win32gui
+
+    needle = title_contains.lower().strip()
+    windows: list[dict] = []
+
+    def visit(hwnd, _):
+        if not win32gui.IsWindowVisible(hwnd):
+            return
+        title = win32gui.GetWindowText(hwnd).strip()
+        if not title:
+            return
+        if needle and needle not in title.lower():
+            return
+        left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+        windows.append(
+            {
+                "hwnd": int(hwnd),
+                "title": title,
+                "rect": {"left": left, "top": top, "right": right, "bottom": bottom},
+            }
+        )
+
+    win32gui.EnumWindows(visit, None)
+    return windows[: max(1, min(int(max_results), 100))]
+
+
+def _window_list(title_contains: str = "", max_results: int = 30) -> list[dict]:
+    if platform.system() != "Windows":
+        raise SafetyError("Window listing is currently implemented for Windows only")
+    return _window_list_windows(title_contains, max_results)
+
+
+def _focus_window_windows(hwnd: int) -> dict:
+    import ctypes
+    import win32con
+    import win32gui
+    import win32process
+
+    user32 = ctypes.windll.user32
+    hwnd = int(hwnd)
+    if not win32gui.IsWindow(hwnd):
+        raise SafetyError(f"Window not found: {hwnd}")
+    if win32gui.IsIconic(hwnd):
+        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+
+    foreground = user32.GetForegroundWindow()
+    current_thread = user32.GetCurrentThreadId()
+    target_thread = win32process.GetWindowThreadProcessId(hwnd)[0]
+    foreground_thread = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
+    attached: list[int] = []
+    try:
+        for thread_id in {target_thread, foreground_thread}:
+            if thread_id and thread_id != current_thread:
+                user32.AttachThreadInput(current_thread, thread_id, True)
+                attached.append(thread_id)
+        win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+        win32gui.BringWindowToTop(hwnd)
+        win32gui.SetForegroundWindow(hwnd)
+        user32.SetFocus(hwnd)
+    finally:
+        for thread_id in attached:
+            user32.AttachThreadInput(current_thread, thread_id, False)
+
+    time.sleep(0.2)
+    left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+    return {
+        "hwnd": hwnd,
+        "title": win32gui.GetWindowText(hwnd),
+        "rect": {"left": left, "top": top, "right": right, "bottom": bottom},
+    }
+
+
+def _focus_window(title_contains: str = "", hwnd: int | None = None) -> dict:
+    if platform.system() != "Windows":
+        raise SafetyError("Window focus is currently implemented for Windows only")
+    target = int(hwnd) if hwnd is not None else None
+    if target is None:
+        matches = _window_list_windows(title_contains, 10)
+        if not matches:
+            raise SafetyError(f"No window matched title_contains={title_contains!r}")
+        target = int(matches[0]["hwnd"])
+    return _focus_window_windows(target)
+
+
 def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None:
     @mcp.tool()
     def ga_desktop_status() -> dict:
@@ -135,6 +220,23 @@ def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None
                 "platform": platform.system(),
                 "write_actions_require_confirm_token": True,
             }
+
+    @mcp.tool()
+    def ga_window_list(title_contains: str = "", max_results: int = 30) -> dict:
+        """List visible desktop windows by title. Disabled by default."""
+        with audit.call("ga_window_list", transport):
+            if not config.enable_desktop:
+                raise SafetyError("ga_window_list is disabled by policy")
+            return {"windows": _window_list(title_contains, max_results)}
+
+    @mcp.tool()
+    def ga_window_focus(title_contains: str = "", hwnd: int | None = None, confirm_token: str | None = None) -> dict:
+        """Bring a visible desktop window to the foreground. Disabled by default."""
+        with audit.call("ga_window_focus", transport, risk_level="high"):
+            if not config.enable_desktop:
+                raise SafetyError("ga_window_focus is disabled by policy")
+            require_confirm(config, confirm_token, "ga_window_focus")
+            return {"ok": True, "window": _focus_window(title_contains, hwnd)}
 
     @mcp.tool()
     def ga_mouse_move(x: int, y: int, confirm_token: str | None = None) -> dict:
@@ -179,6 +281,23 @@ def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None
             ctrl = _ctrl()
             _type_unicode(ctrl, text, max(0, int(delay_ms)) / 1000.0)
             return {"ok": True, "chars": len(text)}
+
+    @mcp.tool()
+    def ga_keyboard_type_window(
+        title_contains: str,
+        text: str,
+        delay_ms: int = 30,
+        confirm_token: str | None = None,
+    ) -> dict:
+        """Focus a window by title and type unicode text into its active control. Disabled by default."""
+        with audit.call("ga_keyboard_type_window", transport, risk_level="high"):
+            if not config.enable_desktop:
+                raise SafetyError("ga_keyboard_type_window is disabled by policy")
+            require_confirm(config, confirm_token, "ga_keyboard_type_window")
+            window = _focus_window(title_contains)
+            ctrl = _ctrl()
+            _type_unicode(ctrl, text, max(0, int(delay_ms)) / 1000.0)
+            return {"ok": True, "chars": len(text), "window": window}
 
     @mcp.tool()
     def ga_mouse_drag(
