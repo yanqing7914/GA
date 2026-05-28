@@ -165,6 +165,7 @@ def _focus_window_windows(hwnd: int) -> dict:
     import win32process
 
     user32 = ctypes.windll.user32
+    kernel32 = ctypes.windll.kernel32
     hwnd = int(hwnd)
     if not win32gui.IsWindow(hwnd):
         raise SafetyError(f"Window not found: {hwnd}")
@@ -172,9 +173,9 @@ def _focus_window_windows(hwnd: int) -> dict:
         win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
 
     foreground = user32.GetForegroundWindow()
-    current_thread = user32.GetCurrentThreadId()
+    current_thread = kernel32.GetCurrentThreadId()
     target_thread = win32process.GetWindowThreadProcessId(hwnd)[0]
-    foreground_thread = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
+    foreground_thread = win32process.GetWindowThreadProcessId(foreground)[0] if foreground else 0
     attached: list[int] = []
     try:
         for thread_id in {target_thread, foreground_thread}:
@@ -182,8 +183,13 @@ def _focus_window_windows(hwnd: int) -> dict:
                 user32.AttachThreadInput(current_thread, thread_id, True)
                 attached.append(thread_id)
         win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
-        win32gui.BringWindowToTop(hwnd)
-        win32gui.SetForegroundWindow(hwnd)
+        user32.AllowSetForegroundWindow(0xFFFFFFFF)
+        user32.keybd_event(0x12, 0, 0, 0)  # Alt down unlocks SetForegroundWindow on Windows.
+        user32.keybd_event(0x12, 0, 0x0002, 0)
+        user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 0x0001 | 0x0002)
+        user32.SetWindowPos(hwnd, -2, 0, 0, 0, 0, 0x0001 | 0x0002)
+        user32.BringWindowToTop(hwnd)
+        user32.SetForegroundWindow(hwnd)
         user32.SetFocus(hwnd)
     finally:
         for thread_id in attached:
