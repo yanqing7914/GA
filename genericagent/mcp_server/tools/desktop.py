@@ -212,7 +212,9 @@ def _focus_window(title_contains: str = "", hwnd: int | None = None) -> dict:
         matches = _window_list_windows(title_contains, 10)
         if not matches:
             raise SafetyError(f"No window matched title_contains={title_contains!r}")
-        target = int(matches[0]["hwnd"])
+        needle = title_contains.lower().strip()
+        exact = next((item for item in matches if item["title"].lower().strip() == needle), None) if needle else None
+        target = int((exact or matches[0])["hwnd"])
     return _focus_window_windows(target)
 
 
@@ -290,8 +292,9 @@ def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None
 
     @mcp.tool()
     def ga_keyboard_type_window(
-        title_contains: str,
         text: str,
+        title_contains: str = "",
+        hwnd: int | None = None,
         delay_ms: int = 30,
         confirm_token: str | None = None,
     ) -> dict:
@@ -300,7 +303,7 @@ def register(mcp, config: McpConfig, audit: AuditLogger, transport: str) -> None
             if not config.enable_desktop:
                 raise SafetyError("ga_keyboard_type_window is disabled by policy")
             require_confirm(config, confirm_token, "ga_keyboard_type_window")
-            window = _focus_window(title_contains)
+            window = _focus_window(title_contains, hwnd)
             ctrl = _ctrl()
             _type_unicode(ctrl, text, max(0, int(delay_ms)) / 1000.0)
             return {"ok": True, "chars": len(text), "window": window}

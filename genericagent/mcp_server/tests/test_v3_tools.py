@@ -130,9 +130,17 @@ class V3ToolHappyPathTests(unittest.TestCase):
         ctrl = FakeDesktopCtrl()
         desktop.register(self.mcp, self.config, self.audit, "unit")
         with patch.object(desktop, "_focus_window", return_value={"hwnd": 1, "title": "飞书"}), patch.object(desktop, "_ctrl", return_value=ctrl):
-            result = self.mcp.tools["ga_keyboard_type_window"]("飞书", "hello", delay_ms=5, confirm_token="ok")
+            result = self.mcp.tools["ga_keyboard_type_window"]("hello", title_contains="飞书", delay_ms=5, confirm_token="ok")
         self.assertEqual(result["chars"], 5)
         self.assertIn(("TypeUnicode", "hello", 0.005), ctrl.calls)
+
+    def test_ga_keyboard_type_window_accepts_hwnd(self):
+        ctrl = FakeDesktopCtrl()
+        desktop.register(self.mcp, self.config, self.audit, "unit")
+        with patch.object(desktop, "_focus_window", return_value={"hwnd": 66800, "title": "飞书"}) as focus_window, patch.object(desktop, "_ctrl", return_value=ctrl):
+            result = self.mcp.tools["ga_keyboard_type_window"]("hello", hwnd=66800, delay_ms=5, confirm_token="ok")
+        self.assertEqual(result["window"]["hwnd"], 66800)
+        focus_window.assert_called_once_with("", 66800)
 
     def test_ga_mouse_drag_happy_path(self):
         ctrl = FakeDesktopCtrl()
